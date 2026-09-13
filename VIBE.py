@@ -4,6 +4,56 @@
 
 import os
 import json
+import sys
+import tty
+import termios
+
+def get_menu_choice():
+    """Get menu choice with ESC key support for exit without saving"""
+    prompt = "Select an option (1-5) or press ESC to exit: "
+    print(prompt, end='', flush=True)
+    
+    # Check if stdin is a terminal
+    if not sys.stdin.isatty():
+        # Fallback for non-interactive mode (e.g., piped input)
+        choice = input().strip().upper()
+        return choice
+    
+    # Save terminal settings
+    old_settings = termios.tcgetattr(sys.stdin)
+    try:
+        # Set terminal to raw mode to detect single key presses
+        tty.setraw(sys.stdin.fileno())
+        
+        while True:
+            ch = sys.stdin.read(1)
+            
+            if not ch:  # Handle EOF
+                return ''
+            
+            # ESC key (ASCII 27)
+            if ord(ch) == 27:
+                print()  # New line for clean output
+                return '\x1b'
+            
+            # Valid menu options 1-5
+            elif ch in '12345':
+                print(ch)  # Echo the character
+                print()    # New line
+                return ch
+            
+            # Enter key
+            elif ch == '\n' or ch == '\r':
+                print()
+                return ''
+            
+            # Any other key - ignore and continue waiting
+            else:
+                pass
+    finally:
+        # Restore terminal settings
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+
 
 class Student:
     """Class to represent a student with grades"""
@@ -200,7 +250,7 @@ def display_menu():
     print("3. Display Class Statistics")
     print("4. Search Student by Name")
     print("5. Save and Exit")
-    print("Press ESC to Exit Without Saving")
+    print("Press ESC to Save and Exit")
     print("="*50)
 
 
@@ -210,10 +260,11 @@ def main():
     
     while True:
         display_menu()
-        choice = input("Select an option (1-5) or press ESC to exit: ").strip().upper()
+        choice = get_menu_choice()
         
         if choice == '\x1b':  # ESC key
-            print("\nExiting without saving. Goodbye!")
+            save_to_file(students)
+            print("Thank you for using the Student Grade Calculator!")
             break
         elif choice == '1':
             add_student(students)
